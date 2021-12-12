@@ -3,6 +3,7 @@ import threading
 import pyodbc
 import requests
 import json
+import sqlite3
 
 # Database
 response_API = requests.get('https://coronavirus-19-api.herokuapp.com/countries')
@@ -14,21 +15,21 @@ PORT = 64320
 FORMAT = "utf8"
 
 # SQL Server
-conxLogin = pyodbc.connect('DRIVER={SQL Server Native Client 11.0};\
-                                    SERVER=LAPTOP-HGNG4440\SQLEXPRESS;\
-                                    Database=account;\
-                                    UID=dh; PWD=1234; Trusted_Connection=yes')
+conxLogin = pyodbc.connect('DRIVER={SQL Server};\
+                            SERVER=113.166.143.111;PORT=1434;\
+                            Database=account;\
+                            UID=dh; PWD=1234;')
 
-conxDatabase = pyodbc.connect('DRIVER={SQL Server Native Client 11.0};\
-                                    SERVER=LAPTOP-HGNG4440\SQLEXPRESS;\
-                                    Database=CoronaData;\
-                                    UID=dh; PWD=1234; Trusted_Connection=yes')
+conxDatabase = pyodbc.connect(' DRIVER={SQL Server};\
+                                SERVER=113.166.143.111;PORT=1434;\
+                                Database=CoronaData;\
+                                UID=dh; PWD=1234;')
 
 # Status Login
 LOGINSUCESS = "Login successfully"
 LOGINFAILED = "Invalid password"
 NOTREGISTRATION = "Username is not registration"
-SIGNUPSUCESS = "Sign in success"
+SIGNUPSUCESS = "Sign up success"
 
 
 # ------------------------ function -------------------------------
@@ -68,6 +69,8 @@ def handleClient(conn, addr):
             conn.sendall("Which country do you want to search ?".encode(FORMAT))
             country = conn.recv(1024).decode(FORMAT)
             Search(conn, country)
+        if not ClientMsg:
+            break
 
     print(f"Client {addr} disconnect")
     conn.close()
@@ -95,7 +98,7 @@ def CheckSignUp(conn, account):
     cursor = conxLogin.cursor()
     cursor.execute("Select * from account where username=?", account[0])
     data = cursor.fetchall()
-    if data is None:
+    if not data:
         cursor.execute("INSERT INTO account(username, pass) values (?, ?)", account[0], account[1])
         conxLogin.commit()
         conn.sendall(SIGNUPSUCESS.encode(FORMAT))
@@ -119,10 +122,17 @@ def UpdateDatabaseFromAPI():
 
 
 def Search(conn, country):
+    lst = []
+    lst_Empty = ["empty"]
     cursor = conxDatabase.cursor()
     cursor.execute("Select * from CoronaData where country = ?", country)
-    data = cursor.fetchall()
-    sendList(conn, data[0])
+    lst = cursor.fetchall()
+
+    if not lst:
+        sendList(conn, lst_Empty)
+
+    else:
+        sendList(conn, lst[0])
 
 
 # --------------------------- main ---------------------------------
@@ -148,6 +158,7 @@ def main():
             nClient += 1
 
     s.close()
+
 
 
 try:
