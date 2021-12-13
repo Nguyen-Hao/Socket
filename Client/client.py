@@ -80,7 +80,7 @@ class Login(tk.Frame):
         self.txt_user = Entry(self, width=40)
         self.txt_user.place(x=150, y=110)
         Label(self, text="Password ", font=("Arial", 10)).place(x=70, y=170)
-        self.txt_pass = Entry(self, width=40)
+        self.txt_pass = Entry(self, width=40, show="*")
         self.txt_pass.place(x=150, y=170)
         self.btn_Login = Button(self, text="Trang chủ", fg="black", activebackground="blue", activeforeground="white",
                                 height=2, width=10, underline=1, bd=3, command=lambda: appController.show_frame(StartPage))
@@ -103,6 +103,7 @@ class Login(tk.Frame):
 
     def sendList(self):
         client.sendall("login".encode(FORMAT))
+        client.recv(1024)
         for items in self.account:
             client.sendall(items.encode(FORMAT))
             client.recv(1024)
