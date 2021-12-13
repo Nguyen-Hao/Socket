@@ -152,9 +152,14 @@ def UpdateDatabaseFromAPI():
 
 def Search(conn, country):
     cursor = conxDatabase.cursor()
+    lst = []
+    lst_Empty = ["empty"]
     cursor.execute("Select * from CoronaData where country = ?", country)
-    data = cursor.fetchall()
-    sendList(conn, data[0])
+    lst = cursor.fetchall()
+    if not lst:
+        sendList(conn, lst_Empty)
+    else:
+        sendList(conn, lst[0])
 
 
 # --------------------------- main ---------------------------------
