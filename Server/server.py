@@ -69,14 +69,6 @@ Live_Account = []
 HISTORY = []
 
 
-def Check_LiveAccount(username):
-    for row in Live_Account:
-        parse = row.find("-")
-        parse_check = row[(parse + 1):]
-        if parse_check == username:
-            return False
-    return True
-
 
 def Remove_LiveAccount(username):
     for i in Live_Account:
@@ -103,8 +95,9 @@ def Remove_LiveAccount(username):
             Live_Account.remove(i)
             return
 
-
+nClient = 0
 def handleClient(conn, addr):
+    global nClient
     print("Client ", addr, "connect")
     now = datetime.now()
     timenow = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -119,6 +112,7 @@ def handleClient(conn, addr):
             account = recvList(conn)
             checkLogin(conn, account)
         if ClientMsg == "signup":
+            conn.send("Dont care".encode(FORMAT))
             newAccount = recvList(conn)
             CheckSignUp(conn, newAccount)
         if ClientMsg == "search":
@@ -200,10 +194,8 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((IP, PORT))
 s.listen(5)
 # UpdateDatabaseFromAPI()
-
+conn, addr=(None, None)
 clientNum = -1
-nClient = 0
-
 
 def runServer():
     print("Sever is running...")
@@ -221,9 +213,9 @@ def runServer():
             thr.daemon = False
             thr.start()
         except:
-            print("Error")
+            exit(1)
         finally:
-            nClient += 1
+            nClient=nClient+1
 
     s.close()
 
@@ -245,6 +237,7 @@ class Admin(tk.Tk):
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(0, weight=1)
         self.page = container
+        self.close=False
 
         self.frames = {}
         for F in (StartPage, NextPage, HomePage):
@@ -263,14 +256,15 @@ class Admin(tk.Tk):
         if container == StartPage:
             self.geometry("500x200")
         elif container == NextPage:
-            self.geometry("600x200")
+            self.geometry("500x200")
         else:
-            self.geometry("500x650")
+            self.geometry("550x650")
         frame.tkraise()
 
-    # close-programe function
+    # close-program function
     def on_closing(self):
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            self.close=True
             global s
             s.close()
             self.destroy()
@@ -295,15 +289,14 @@ class Admin(tk.Tk):
         if self.page != NextPage:
             return None
         self.numberofClients = int(curFrame.entry_nClient.get())
+        if self.numberofClients<=0:
+            curFrame.label_notice["text"]="You must type a positive integer"
+            return
         self.showFrame(HomePage)
+
         if self.checkThread == False:
             Thread.start()
             self.checkThread = True
-
-    def logOut(self, curFrame):
-        if self.page != HomePage:
-            return None
-        self.showFrame(StartPage)
 
 
 class StartPage(tk.Frame):
@@ -337,20 +330,17 @@ class NextPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.configure(bg=BG)
-        label_title = tk.Label(self, text="\nSEVER SETTING\n", font=LARGE_FONT, fg='#209b93', bg=BG).grid(
-            row=0, column=1)
-        label_nClient = tk.Label(self, text="\tNUMBER OF CLIENTS ", fg='#209b93', bg=BG, font='consolas 11 bold').grid(
-            row=1, column=0)
+        label_title = tk.Label(self, text="\nSEVER SETTING\n", font=LARGE_FONT, fg='#209b93', bg=BG).grid(row=0, column=1)
+        label_nClient = tk.Label(self, text="   NUMBER OF CLIENTS  ", fg='#209b93', bg=BG, font='consolas 11 bold').grid(row=2, column=0)
         self.label_notice = tk.Label(self, text="", bg=BG, fg='red')
         self.entry_nClient = tk.Entry(self, width=30, bg='white')
 
-        button_log = tk.Button(self, text="NEXT", bg="#209b93", fg='white',
-                               command=lambda: controller.Setting(self))
+        button_log = tk.Button(self, text="NEXT", bg="#209b93", fg='white', command=lambda: controller.Setting(self))
 
         button_log.grid(row=4, column=1)
         button_log.configure(width=10)
         self.label_notice.grid(row=3, column=1)
-        self.entry_nClient.grid(row=1, column=1)
+        self.entry_nClient.grid(row=2, column=1)
 
 
 class HomePage(tk.Frame):
@@ -358,24 +348,23 @@ class HomePage(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.configure(bg=BG)
         label_title = tk.Label(self, text="\n ONLINE ACCOUNTS\n", font=LARGE_FONT, fg='#209b93', bg=BG).pack()
-        label_title2 = tk.Label(self, text="\n HISTORY\n", font="consolas 14 bold", fg="#209b93", bg=BG).place(x=200,
-                                                                                                               y=300)
+        label_title2 = tk.Label(self, text="\n HISTORY\n", font="consolas 14 bold", fg="#209b93", bg=BG).place(x=230,y=300)
         self.conent = tk.Frame(self)
         self.data = tk.Listbox(self.conent, height=10,
-                               width=40,
+                               width=42,
                                bg="white",
                                activestyle='dotbox',
                                font="Helvetica",
                                fg='#20639b')
-        self.data2 = scrolledtext.ScrolledText(self, width=55, height=15)
-        self.data2.place(x=20, y=350)
+        self.data2 = scrolledtext.ScrolledText(self, width=58, height=15)
+        self.data2.place(x=35, y=350)
         button_log = tk.Button(self, text="REFRESH", bg="#209b93", fg='white', command=self.Update_Client)
-        button_back = tk.Button(self, text="LOG OUT", bg="#209b93", fg='white',
-                                command=lambda: controller.logOut(self))
-        button_log.pack(side=BOTTOM)
-        button_log.configure(width=10)
+        button_back = tk.Button(self, text="CLOSE", bg="#209b93", fg='white',
+                                command=lambda: controller.on_closing())
         button_back.pack(side=BOTTOM)
         button_back.configure(width=10)
+        button_log.pack(side=BOTTOM)
+        button_log.configure(width=10)
 
         self.conent.pack_configure()
         self.scroll = tk.Scrollbar(self.conent)

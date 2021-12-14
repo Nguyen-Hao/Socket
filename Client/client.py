@@ -109,6 +109,10 @@ class Login(tk.Frame):
         else:
             self.sendList()
             status = client.recv(1024).decode(FORMAT)
+            if status == "exit":
+                messagebox.showerror("Error", "Sever closed")
+                client.close()
+                self.destroy()
             self.Status.configure(text=status)
             if status == LOGIN_SUCCESS:
                 appController.show_frame(SearchPage)
@@ -168,10 +172,15 @@ class SignUp(tk.Frame):
         else:
             self.sendList()
             status = client.recv(1024).decode(FORMAT)
+            if status == "exit":
+                messagebox.showerror("Error", "Sever closed")
+                client.close()
+                self.destroy()
             self.Status.configure(text=status)
 
     def sendList(self):
         client.sendall("signup".encode(FORMAT))
+        client.recv(1024)
         for items in self.account:
             client.sendall(items.encode(FORMAT))
             client.recv(1024)
@@ -260,13 +269,14 @@ class App(Tk):
     # close-programe function
     def on_closing(self):
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
-            global client
             client.close()
             self.destroy()
 
     def show_frame(self, cont):
         frame = self.frames[cont]
         frame.tkraise()
+
+
 
 
 try:
