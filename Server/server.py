@@ -5,11 +5,14 @@ import requests
 import json
 import sys
 
+from datetime import datetime
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
 from tkinter import *
 from tkinter.ttk import *
+
+from tkinter import scrolledtext
 
 # Database
 response_API = requests.get('https://coronavirus-19-api.herokuapp.com/countries')
@@ -21,6 +24,7 @@ PORT = 64320
 FORMAT = "utf8"
 
 LARGE_FONT = ("Consolas", 13, "bold")
+
 BG = "light blue"
 
 # SQL Server
@@ -62,6 +66,26 @@ def sendList(conn, listItems):
 
 
 Live_Account = []
+HISTORY = []
+
+
+def Check_LiveAccount(username):
+    for row in Live_Account:
+        parse = row.find("-")
+        parse_check = row[(parse + 1):]
+        if parse_check == username:
+            return False
+    return True
+
+
+def Remove_LiveAccount(username):
+    for i in Live_Account:
+        if i == username:
+            Live_Account.remove(i)
+            return
+
+
+Live_Account = []
 
 
 def Check_LiveAccount(username):
@@ -82,11 +106,16 @@ def Remove_LiveAccount(username):
 
 def handleClient(conn, addr):
     print("Client ", addr, "connect")
+    now = datetime.now()
+    timenow = now.strftime("%d/%m/%Y %H:%M:%S")
+    text = str(timenow) + " Client " + str(addr) + " connect"
+    HISTORY.append(text)
     ClientMsg = None
     while ClientMsg != "x":
         ClientMsg = conn.recv(1024).decode(FORMAT)
         print("Client: ", ClientMsg)
         if ClientMsg == "login":
+            conn.send("Dont care".encode(FORMAT))
             account = recvList(conn)
             checkLogin(conn, account)
         if ClientMsg == "signup":
@@ -100,6 +129,10 @@ def handleClient(conn, addr):
             break
 
     Remove_LiveAccount(account[0])
+    now = datetime.now()
+    timenow = now.strftime("%d/%m/%Y %H:%M:%S")
+    text = str(timenow) + " Client " + str(addr) + " disconnect"
+    HISTORY.append(text)
     print(f"Client {addr} disconnect")
     conn.close()
 
@@ -163,7 +196,6 @@ def Search(conn, country):
 
 
 # --------------------------- main ---------------------------------
-
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((IP, PORT))
 s.listen(5)
@@ -233,7 +265,7 @@ class Admin(tk.Tk):
         elif container == NextPage:
             self.geometry("600x200")
         else:
-            self.geometry("500x600")
+            self.geometry("500x650")
         frame.tkraise()
 
     # close-programe function
@@ -282,10 +314,10 @@ class StartPage(tk.Frame):
         label_title = tk.Label(self, text="\nLOG IN FOR SEVER\n", font=LARGE_FONT, fg='#209b93', bg=BG).grid(
             row=0, column=1)
 
-        label_user = tk.Label(self, text="\tUSERNAME ", fg='#209b93', bg=BG, font='verdana 10 bold').grid(row=1,
-                                                                                                          column=0)
-        label_pswd = tk.Label(self, text="\tPASSWORD ", fg='#209b93', bg=BG, font='verdana 10 bold').grid(row=2,
-                                                                                                          column=0)
+        label_user = tk.Label(self, text="\tUSERNAME ", fg='#209b93', bg=BG, font='consolas 12 bold').grid(row=1,
+                                                                                                           column=0)
+        label_pswd = tk.Label(self, text="\tPASSWORD ", fg='#209b93', bg=BG, font='consolas 12 bold').grid(row=2,
+                                                                                                           column=0)
 
         self.label_notice = tk.Label(self, text="", bg=BG, fg='red')
         self.entry_user = tk.Entry(self, width=30, bg='white')
@@ -307,7 +339,7 @@ class NextPage(tk.Frame):
         self.configure(bg=BG)
         label_title = tk.Label(self, text="\nSEVER SETTING\n", font=LARGE_FONT, fg='#209b93', bg=BG).grid(
             row=0, column=1)
-        label_nClient = tk.Label(self, text="\tNUMBER OF CLIENTS ", fg='#209b93', bg=BG, font='verdana 10 bold').grid(
+        label_nClient = tk.Label(self, text="\tNUMBER OF CLIENTS ", fg='#209b93', bg=BG, font='consolas 11 bold').grid(
             row=1, column=0)
         self.label_notice = tk.Label(self, text="", bg=BG, fg='red')
         self.entry_nClient = tk.Entry(self, width=30, bg='white')
@@ -325,17 +357,18 @@ class HomePage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.configure(bg=BG)
-        label_title = tk.Label(self, text="\n ONLINE ACCOUNTS\n", font=LARGE_FONT, fg='#209b93',
-                               bg=BG).pack()
-
+        label_title = tk.Label(self, text="\n ONLINE ACCOUNTS\n", font=LARGE_FONT, fg='#209b93', bg=BG).pack()
+        label_title2 = tk.Label(self, text="\n HISTORY\n", font="consolas 14 bold", fg="#209b93", bg=BG).place(x=200,
+                                                                                                               y=300)
         self.conent = tk.Frame(self)
         self.data = tk.Listbox(self.conent, height=10,
                                width=40,
-                               bg=BG,
+                               bg="white",
                                activestyle='dotbox',
                                font="Helvetica",
                                fg='#20639b')
-
+        self.data2 = scrolledtext.ScrolledText(self, width=55, height=15)
+        self.data2.place(x=20, y=350)
         button_log = tk.Button(self, text="REFRESH", bg="#209b93", fg='white', command=self.Update_Client)
         button_back = tk.Button(self, text="LOG OUT", bg="#209b93", fg='white',
                                 command=lambda: controller.logOut(self))
@@ -356,6 +389,9 @@ class HomePage(tk.Frame):
         self.data.delete(0, len(Live_Account))
         for i in range(len(Live_Account)):
             self.data.insert(i, Live_Account[i])
+        self.data2.delete('1.0', END)
+        for i in HISTORY:
+            self.data2.insert(INSERT, i + "\n")
 
 
 app = Admin()

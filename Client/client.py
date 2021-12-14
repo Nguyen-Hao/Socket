@@ -115,6 +115,7 @@ class Login(tk.Frame):
 
     def sendList(self):
         client.sendall("login".encode(FORMAT))
+        client.recv(1024)
         for items in self.account:
             client.sendall(items.encode(FORMAT))
             client.recv(1024)
