@@ -3,12 +3,18 @@ from tkinter import *
 import tkinter as tk
 import tkinter
 from tkinter import messagebox
+from datetime import datetime
 
 IP_default = "127.0.0.1"
 PORT = 64320
 FORMAT = "utf8"
 
 LOGIN_SUCCESS = "Login successfully"
+
+# Time
+now = datetime.now()
+dt_string = now.strftime("%d/%m/%Y")
+
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 
@@ -33,7 +39,7 @@ class StartPage(tk.Frame):
         self.entry_IP = Entry(self, width=25)
         self.entry_IP.insert(0, "127.0.0.1")
         self.entry_IP.place(x=220, y=80)
-        self.btn_Connect = Button(self, text="Connect",
+        self.btn_Connect = Button(self, text="Connect", bg="#66FF66",
                                   command=lambda: self.Check_Connect(self, self.entry_IP.get()))
         self.btn_Connect.place(x=400, y=75)
 
@@ -70,6 +76,16 @@ class StartPage(tk.Frame):
             self.note.configure(text="")
         else:
             Label(frame, text="Failed to connect to server. Please check again", fg="red").place(x=40, y=110)
+
+    # def Logout(self, appController):
+    #     global client
+    #     client.close()
+    #     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #     appController.show_frame(StartPage)
+    #     self.entry_IP["state"] = NORMAL
+    #     self.btn_Connect["state"] = NORMAL
+    #     self.btn_signUp["state"] = DISABLED
+    #     self.btn_login["state"] = DISABLED
 
 
 class Login(tk.Frame):
@@ -112,6 +128,7 @@ class Login(tk.Frame):
             self.Status.configure(text=status)
             if status == LOGIN_SUCCESS:
                 appController.show_frame(SearchPage)
+                self.Status.configure(text="")
 
     def sendList(self):
         client.sendall("login".encode(FORMAT))
@@ -145,7 +162,7 @@ class SignUp(tk.Frame):
                                  activeforeground="black", height=2, width=10, underline=1, bd=3,
                                  command=lambda: appController.show_frame(StartPage))
         self.btn_goBack.place(x=10, y=10)
-        self.btn_signUp = Button(self, text="Đăng kí", fg="blue", activebackground="blue", activeforeground="white",
+        self.btn_signUp = Button(self, text="Sign up", fg="blue", activebackground="blue", activeforeground="white",
                                  height=2,
                                  width=10, underline=1, bd=3, command=self.CheckSignUp)
         self.btn_signUp.place(x=210, y=240)
@@ -182,15 +199,19 @@ class SignUp(tk.Frame):
 class SearchPage(tk.Frame):
     def __init__(self, frame, appController):
         Frame.__init__(self, frame)
-        title = Label(self, text="SEARCH COVID-19 WORLD", fg="blue", bd=0, bg="#ADD8E6",
+        self.frame = frame
+        # self.startPage = StartPage.__init__(frame, appController)
+        self.covidData = []
+        title = Label(self, text="COVID-19 WORLD", fg="blue", bd=0, bg="#ADD8E6",
                       font=("Transformers Movie", 20))
         title.pack(pady=5)
-        Label(self, text="Find number of cases in the country in the world", font=("Arial", 10)).place(x = 50, y=50)
+        Label(self, text="Find number of cases in the country in the world", font=("Arial", 10)).place(x=50, y=50)
         Label(self, text="Example: USA, Vietnam, Cambodia, ...", font=("Arial", 10)).place(x=50, y=70)
-        Label(self, text="Regardless of uppercase or lowercase. Example: USA <-> usa, ...", font=("Arial", 10)).place(x=50, y=90)
+        Label(self, text="Regardless of uppercase or lowercase. Example: USA <-> usa, ...", font=("Arial", 10)).place(
+            x=50, y=90)
         self.txt_Country = Entry(self, width=48, font=("Arial", 10))
         self.txt_Country.place(x=60, y=132)
-        self.btn_Submit = Button(self, text='Submit', command=self.divide_cast,
+        self.btn_Submit = Button(self, text='Search', command=self.divide_cast,
                                  fg="white", bg="green", activebackground="blue", activeforeground="white",
                                  width=5, underline=1, bd=3)
         self.btn_Submit.place(x=400, y=130)
@@ -198,7 +219,36 @@ class SearchPage(tk.Frame):
         self.error = tkinter.Label(self, text="", fg="red")
         self.error.place(x=100, y=150)
 
+        # self.btn_goBack = Button(self, text="Log out", fg="black", bg="gray", activebackground="#CCCC99",
+        #                          activeforeground="black", height=2, width=10, underline=1, bd=3,
+        #                          command=lambda: StartPage.Logout(self.startPage, appController))
+        # self.btn_goBack.place(x=3, y=3)
+        self.btn_today = Button(self, text='Today', command=self.show_today,
+                                fg="black", activebackground="blue",
+                                activeforeground="white", font=("Arial", 11),
+                                width=5, underline=1, bd=3)
+        self.btn_today.place(x=100, y=165)
+        self.btn_today["state"] = DISABLED
+        self.btn_total = Button(self, text='Total', command=self.show_total,
+                                fg="black", activebackground="blue",
+                                activeforeground="white", font=("Arial", 11),
+                                width=5, underline=1, bd=3)
+        self.btn_total.place(x=300, y=165)
+        self.btn_total["state"] = DISABLED
+
+        self.title = tk.Label(self)
+        self.cases = tk.Label(self)
+        self.deaths = tk.Label(self)
+        self.recovered = tk.Label(self)
+
+        self.casesTitle = tk.Label(self)
+        self.deathsTitle = tk.Label(self)
+        self.recoveredTitle = tk.Label(self)
+
     def CheckError(self, number):
+        self.refresh_table()
+        self.btn_today["state"] = DISABLED
+        self.btn_total["state"] = DISABLED
         if number == 0:
             self.error.configure(text="Please input country to search")
         if number == -1:
@@ -207,23 +257,69 @@ class SearchPage(tk.Frame):
             self.error.configure(text="")
 
     def ReceiveDataCovid19(self):
-        covid_info = receiveList()
-        if covid_info[0] == "empty":
+        self.covidData = receiveList()
+        if self.covidData[0] == "empty":
             self.CheckError(-1)
-            return
-        li = tkinter.Label(self, text=f"{self.txt_Country.get().upper()}", width=30, fg="white", bg="#990000", font=("Arial", 16), borderwidth=3, relief="solid").place(x=65, y=170)
-        li1 = tkinter.Label(self, text="Cases", width=17, fg="white", bg="blue", borderwidth=2, relief="solid")
-        li1.place(x=65, y=200)
-        li2 = tkinter.Label(self, text="Deaths", width=17, fg="white", bg="blue", borderwidth=2, relief="solid")
-        li2.place(x=190, y=200)
-        li3 = tkinter.Label(self, text="Recovered", width=16, fg="white", bg="blue", borderwidth=2, relief="solid")
-        li3.place(x=315, y=200)
-        box1 = tkinter.Label(self, text=f'{covid_info[1]}', width=17, height=2, bg="#009999", borderwidth=2, relief="solid")
-        box1.place(x=65, y=220)
-        box2 = tkinter.Label(self, text=f'{covid_info[3]}', width=17, height=2, bg="#009999", borderwidth=2, relief="solid")
-        box2.place(x=190, y=220)
-        box3 = tkinter.Label(self, text=f'{covid_info[5]}', width=16, height=2, bg="#009999", borderwidth=2, relief="solid")
-        box3.place(x=315, y=220)
+        else:
+            self.btn_today["state"] = NORMAL
+            self.btn_total["state"] = NORMAL
+
+    def refresh_table(self):
+        self.title.configure(text="", width=0, borderwidth=0, bg="SystemButtonFace")
+        self.cases.configure(text="", width=0, height=0, borderwidth=0, bg="SystemButtonFace")
+        self.deaths.configure(text="", width=0, height=0, borderwidth=0, bg="SystemButtonFace")
+        self.recovered.configure(text="", width=0, height=0, borderwidth=0, bg="SystemButtonFace")
+
+        self.casesTitle.configure(text="", width=0, borderwidth=0, bg="SystemButtonFace")
+        self.deathsTitle.configure(text="", width=0, borderwidth=0, bg="SystemButtonFace")
+        self.recoveredTitle.configure(text="", width=0, borderwidth=0, bg="SystemButtonFace")
+
+    def show_total(self):
+        self.refresh_table()
+        self.btn_total["state"] = DISABLED
+        self.btn_today["state"] = NORMAL
+        self.title.configure(text=f"{self.txt_Country.get().upper()}", width=30, fg="white", bg="#990000",
+                             font=("Arial", 16), borderwidth=3, relief="solid")
+        self.title.place(x=65, y=200)
+
+        self.casesTitle.configure(text="Cases", width=17, fg="white", bg="blue", borderwidth=2, relief="solid")
+        self.casesTitle.place(x=65, y=230)
+
+        self.deathsTitle.configure(text="Deaths", width=17, fg="white", bg="blue", borderwidth=2, relief="solid")
+        self.deathsTitle.place(x=190, y=230)
+        self.recoveredTitle.configure(text="Recovered", width=16, fg="white", bg="blue", borderwidth=2,
+                                      relief="solid")
+        self.recoveredTitle.place(x=315, y=230)
+        self.cases.configure(text=f'{int(self.covidData[1]):,d}', width=17, height=2, bg="#009999", borderwidth=2,
+                             relief="solid")
+        self.cases.place(x=65, y=250)
+        self.deaths.configure(text=f'{int(self.covidData[3]):,d}', width=17, height=2, bg="#009999",
+                              borderwidth=2,
+                              relief="solid")
+        self.deaths.place(x=190, y=250)
+        self.recovered.configure(text=f'{int(self.covidData[5]):,d}', width=16, height=2, bg="#009999",
+                                 borderwidth=2,
+                                 relief="solid")
+        self.recovered.place(x=315, y=250)
+
+    def show_today(self):
+        self.refresh_table()
+        self.btn_today["state"] = DISABLED
+        self.btn_total["state"] = NORMAL
+        self.title.configure(text=f"{self.txt_Country.get().upper()} - {dt_string}", fg="white", width=22,
+                             bg="#990000", font=("Arial", 14), borderwidth=3, relief="solid")
+        self.title.place(x=110, y=200)
+        self.casesTitle.configure(text="Cases", width=17, fg="white", bg="blue", borderwidth=2, relief="solid")
+        self.casesTitle.place(x=110, y=230)
+        self.deathsTitle.configure(text="Deaths", width=17, fg="white", bg="blue", borderwidth=2, relief="solid")
+        self.deathsTitle.place(x=235, y=230)
+        self.cases.configure(text=f'{int(self.covidData[2]):,d}', width=17, height=2, bg="#009999", borderwidth=2,
+                             relief="solid")
+        self.cases.place(x=110, y=250)
+        self.deaths.configure(text=f'{int(self.covidData[4]):,d}', width=17, height=2, bg="#009999",
+                              borderwidth=2,
+                              relief="solid")
+        self.deaths.place(x=235, y=250)
 
     def divide_cast(self):
         if len(self.txt_Country.get()) == 0:
@@ -239,11 +335,11 @@ class SearchPage(tk.Frame):
 class App(Tk):
     def __init__(self):
         Tk.__init__(self)
+
         self.geometry("500x300")
         self.title("COVID SEARCH ENGINE CLIENT")
         self.resizable(width=False, height=False)
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
-        self.configure(bg="#ADD8E6")
 
         container = Frame()
         container.pack(side="top", fill="both", expand=True)
@@ -256,10 +352,11 @@ class App(Tk):
             frame = F(container, self)
             frame.grid(row=0, column=0, sticky="nsew")
             self.frames[F] = frame
+        self.show_frame(StartPage)
 
     # close-programe function
     def on_closing(self):
-        if messagebox.askokcancel("Quit", "Do you want to quit?"):
+        if messagebox.askokcancel("Quit", "Do you want to quit?\nYou will disconnect to server.."):
             global client
             client.close()
             self.destroy()
@@ -269,8 +366,8 @@ class App(Tk):
         frame.tkraise()
 
 
-try:
-    app = App()
-    app.mainloop()
-except:
-    print("Error")
+# try:
+app = App()
+app.mainloop()
+# except:
+#     print("Error")
