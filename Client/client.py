@@ -125,6 +125,10 @@ class Login(tk.Frame):
         else:
             self.sendList()
             status = client.recv(1024).decode(FORMAT)
+            if status == "exit":
+                messagebox.showerror("Error", "Sever closed")
+                client.close()
+                self.destroy()
             self.Status.configure(text=status)
             if status == LOGIN_SUCCESS:
                 appController.show_frame(SearchPage)
@@ -185,10 +189,15 @@ class SignUp(tk.Frame):
         else:
             self.sendList()
             status = client.recv(1024).decode(FORMAT)
+            if status == "exit":
+                messagebox.showerror("Error", "Sever closed")
+                client.close()
+                self.destroy()
             self.Status.configure(text=status)
 
     def sendList(self):
         client.sendall("signup".encode(FORMAT))
+        client.recv(1024)
         for items in self.account:
             client.sendall(items.encode(FORMAT))
             client.recv(1024)
@@ -210,14 +219,14 @@ class SearchPage(tk.Frame):
         Label(self, text="Regardless of uppercase or lowercase. Example: USA <-> usa, ...", font=("Arial", 10)).place(
             x=50, y=90)
         self.txt_Country = Entry(self, width=48, font=("Arial", 10))
-        self.txt_Country.place(x=60, y=132)
+        self.txt_Country.place(x=60, y=122)
         self.btn_Submit = Button(self, text='Search', command=self.divide_cast,
                                  fg="white", bg="green", activebackground="blue", activeforeground="white",
                                  width=5, underline=1, bd=3)
-        self.btn_Submit.place(x=400, y=130)
+        self.btn_Submit.place(x=400, y=120)
 
         self.error = tkinter.Label(self, text="", fg="red")
-        self.error.place(x=100, y=150)
+        self.error.place(x=60, y=145)
 
         # self.btn_goBack = Button(self, text="Log out", fg="black", bg="gray", activebackground="#CCCC99",
         #                          activeforeground="black", height=2, width=10, underline=1, bd=3,
@@ -266,13 +275,20 @@ class SearchPage(tk.Frame):
 
     def refresh_table(self):
         self.title.configure(text="", width=0, borderwidth=0, bg="SystemButtonFace")
+        self.title.place(x=0, y=0)
         self.cases.configure(text="", width=0, height=0, borderwidth=0, bg="SystemButtonFace")
+        self.cases.place(x=0, y=0)
         self.deaths.configure(text="", width=0, height=0, borderwidth=0, bg="SystemButtonFace")
+        self.deaths.place(x=0, y=0)
         self.recovered.configure(text="", width=0, height=0, borderwidth=0, bg="SystemButtonFace")
+        self.recovered.place(x=0, y=0)
 
         self.casesTitle.configure(text="", width=0, borderwidth=0, bg="SystemButtonFace")
+        self.casesTitle.place(x=0, y=0)
         self.deathsTitle.configure(text="", width=0, borderwidth=0, bg="SystemButtonFace")
+        self.deathsTitle.place(x=0, y=0)
         self.recoveredTitle.configure(text="", width=0, borderwidth=0, bg="SystemButtonFace")
+        self.recoveredTitle.place(x=0, y=0)
 
     def show_total(self):
         self.refresh_table()
@@ -366,8 +382,8 @@ class App(Tk):
         frame.tkraise()
 
 
-# try:
-app = App()
-app.mainloop()
-# except:
-#     print("Error")
+try:
+    app = App()
+    app.mainloop()
+except:
+    print("Error")
