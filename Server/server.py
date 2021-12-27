@@ -1,5 +1,7 @@
 import socket
 import threading
+import time
+
 import pyodbc
 import requests
 import json
@@ -110,11 +112,11 @@ def handleClient(conn, addr):
         if ClientMsg == "login":
             conn.send("Dont care".encode(FORMAT))
             account = recvList(conn)
-            checkLogin(conn, account)
+            checkLogin(conn, account, addr)
         if ClientMsg == "signup":
             conn.send("Dont care".encode(FORMAT))
             newAccount = recvList(conn)
-            CheckSignUp(conn, newAccount)
+            CheckSignUp(conn, newAccount, addr)
         if ClientMsg == "search":
             conn.sendall("Which country do you want to search ?".encode(FORMAT))
             country = conn.recv(1024).decode(FORMAT)
@@ -131,7 +133,7 @@ def handleClient(conn, addr):
     conn.close()
 
 
-def checkLogin(conn, account):
+def checkLogin(conn, account, addr):
     cursor = conxLogin.cursor()
     cursor.execute("select pass from account where username = ?", account[0])
     passData = cursor.fetchone()
@@ -143,6 +145,10 @@ def checkLogin(conn, account):
         print(LOGINSUCESS)
         conn.sendall(LOGINSUCESS.encode(FORMAT))
         Live_Account.append(account[0])
+        now = datetime.now()
+        timenow = now.strftime("%d/%m/%Y %H:%M:%S")
+        text = str(timenow) + " Client " + str(addr) + " login as  "+account[0]
+        HISTORY.append(text)
         return True
     else:
         print(LOGINFAILED)
@@ -150,7 +156,8 @@ def checkLogin(conn, account):
         return False
 
 
-def CheckSignUp(conn, account):
+
+def CheckSignUp(conn, account, addr):
     cursor = conxLogin.cursor()
     cursor.execute("Select * from account where username=?", account[0])
     data = cursor.fetchall()
@@ -158,6 +165,10 @@ def CheckSignUp(conn, account):
         cursor.execute("INSERT INTO account(username, pass) values (?, ?)", account[0], account[1])
         conxLogin.commit()
         conn.sendall(SIGNUPSUCESS.encode(FORMAT))
+        now = datetime.now()
+        timenow = now.strftime("%d/%m/%Y %H:%M:%S")
+        text = str(timenow) + " Client " + str(addr) + " sign up as "+account[0]
+        HISTORY.append(text)
     else:
         conn.sendall("Username has been registration".encode(FORMAT))
 
@@ -193,7 +204,15 @@ def Search(conn, country):
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((IP, PORT))
 s.listen(5)
-# UpdateDatabaseFromAPI()
+
+def UpdateDataBase():
+    while (True):
+        UpdateDatabaseFromAPI()
+        time.sleep(60*60)
+ThreadUpdate = threading.Thread(target=UpdateDataBase)
+ThreadUpdate.daemon = False
+ThreadUpdate.start()
+
 conn, addr=(None, None)
 clientNum = -1
 
@@ -390,8 +409,4 @@ Thread.daemon = False
 
 app.mainloop()
 
-# app=Admin()
-# app.mainloop()
 
-
-# runSever()
