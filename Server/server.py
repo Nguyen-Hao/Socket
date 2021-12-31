@@ -6,6 +6,7 @@ import pyodbc
 import requests
 import json
 import sys
+import os
 
 from datetime import datetime
 import tkinter as tk
@@ -31,12 +32,12 @@ BG = "light blue"
 
 # SQL Server
 conxLogin = pyodbc.connect('DRIVER={SQL Server};\
-                            SERVER=113.166.143.111;PORT=1434;\
+                            SERVER=123.19.232.3;PORT=1434;\
                             Database=account;\
                             UID=dh; PWD=1234;')
 
 conxDatabase = pyodbc.connect(' DRIVER={SQL Server};\
-                                SERVER=113.166.143.111;PORT=1434;\
+                                SERVER=123.19.232.3;PORT=1434;\
                                 Database=CoronaData;\
                                 UID=dh; PWD=1234;')
 
@@ -204,11 +205,19 @@ def Search(conn, country):
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((IP, PORT))
 s.listen(5)
-
+from threading import Event
+exit=Event()
+isClose=False
 def UpdateDataBase():
-    while (True):
-        UpdateDatabaseFromAPI()
-        time.sleep(60*60)
+    try:
+        while not exit.is_set():
+            UpdateDatabaseFromAPI()
+            exit.wait(60*60)
+    except:
+        pass
+    finally:
+        print("Update database ended")
+
 ThreadUpdate = threading.Thread(target=UpdateDataBase)
 ThreadUpdate.daemon = False
 ThreadUpdate.start()
@@ -225,16 +234,19 @@ def runServer():
         sys.exit(1)
     print("Waiting for Client")
     global nClient
-    while nClient < clientNum:
-        try:
-            conn, addr = s.accept()
-            thr = threading.Thread(target=handleClient, args=(conn, addr))
-            thr.daemon = False
-            thr.start()
-        except:
-            exit(1)
-        finally:
-            nClient=nClient+1
+    try:
+        while nClient < clientNum:
+            try:
+                conn, addr = s.accept()
+                thr = threading.Thread(target=handleClient, args=(conn, addr))
+                thr.daemon = False
+                thr.start()
+            except:
+                pass
+            finally:
+                nClient=nClient+1
+    finally:
+        print("Socket ended")
 
     s.close()
 
@@ -283,9 +295,11 @@ class Admin(tk.Tk):
     # close-program function
     def on_closing(self):
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
-            self.close=True
+            global isClose
+            isClose=True
             global s
             s.close()
+            exit.set()
             self.destroy()
 
     def logIn(self, curFrame):
@@ -323,13 +337,9 @@ class StartPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.configure(bg=BG)
 
-        label_title = tk.Label(self, text="\nLOG IN FOR SEVER\n", font=LARGE_FONT, fg='#209b93', bg=BG).grid(
-            row=0, column=1)
-
-        label_user = tk.Label(self, text="\tUSERNAME ", fg='#209b93', bg=BG, font='consolas 12 bold').grid(row=1,
-                                                                                                           column=0)
-        label_pswd = tk.Label(self, text="\tPASSWORD ", fg='#209b93', bg=BG, font='consolas 12 bold').grid(row=2,
-                                                                                                           column=0)
+        label_title = tk.Label(self, text="\nLOG IN FOR SEVER\n", font=LARGE_FONT, fg='#209b93', bg=BG).grid(row=0, column=1)
+        label_user = tk.Label(self, text="\tUSERNAME ", fg='#209b93', bg=BG, font='consolas 12 bold').grid(row=1,column=0)
+        label_pswd = tk.Label(self, text="\tPASSWORD ", fg='#209b93', bg=BG, font='consolas 12 bold').grid(row=2,column=0)
 
         self.label_notice = tk.Label(self, text="", bg=BG, fg='red')
         self.entry_user = tk.Entry(self, width=30, bg='white')
